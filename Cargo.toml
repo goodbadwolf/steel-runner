@@ -8,3 +8,6 @@ edition = "2021"
 [dependencies]
 once_cell = "1.18.0"
 stb_image_write_rust = "1.16.1"
+
+[features]
+use_f64 = []

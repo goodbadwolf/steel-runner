@@ -2,7 +2,18 @@ use std::fmt;
 use std::marker::Copy;
 use std::ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub};
 
+#[cfg(feature = "use_f64")]
 pub type Float = f64;
+#[cfg(feature = "use_f64")]
+pub const PI: Float = std::f64::consts::PI;
+
+#[cfg(not(feature = "use_f64"))]
+pub type Float = f32;
+#[cfg(not(feature = "use_f64"))]
+pub const PI: Float = std::f32::consts::PI;
+
+pub const INFINITY: Float = Float::INFINITY;
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Vec3 {
     e: [Float; 3],
@@ -42,7 +53,7 @@ impl Vec3 {
         self.length_squared().sqrt()
     }
 
-    pub fn normal(&self) -> Self {
+    pub fn normalized(&self) -> Self {
         *self / self.length()
     }
 }

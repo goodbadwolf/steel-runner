@@ -5,32 +5,24 @@ mod trace;
 use once_cell::sync::Lazy;
 
 use crate::math::*;
-use crate::trace::Ray;
+use crate::trace::{HitRecord, Hittable, HittableList, Ray, Sphere};
 use crate::{
     color::write_color,
     math::{Color3, Float},
 };
 use std::fmt::Write;
 
-fn hits_sphere(center: &Point3, radius: Float, ray: &Ray) -> bool {
-    let oc = ray.origin - *center;
-    let a = dot(&ray.direction, &ray.direction);
-    let b = 2.0 * dot(&oc, &ray.direction);
-    let c = dot(&oc, &oc) - radius * radius;
-    let discriminant = b * b - 4.0 * a * c;
-    discriminant >= 0.0
-}
-
-fn ray_color(ray: &Ray) -> Color3 {
+fn ray_color(ray: &Ray, world: &dyn Hittable) -> Color3 {
     static WHITE: Lazy<Color3> = Lazy::new(|| Color3::from(1.0, 1.0, 1.0));
-    static RED: Lazy<Color3> = Lazy::new(|| Color3::from(1.0, 0.0, 0.0));
     static BLUE: Lazy<Color3> = Lazy::new(|| Color3::from(0.5, 0.7, 1.0));
 
-    if hits_sphere(&Point3::from(0.0, 0.0, -1.0), 0.5, ray) {
-        *RED
+    let mut hit_record = HitRecord::new();
+    if world.hit(ray, 0.0, INFINITY, &mut hit_record) {
+        0.5 * (hit_record.normal + *WHITE)
     } else {
-        let a = 0.5 * (ray.direction.y() + 1.0);
-        (1.0 - a) * *WHITE + a * *BLUE
+        let unit_direction = ray.direction.normalized();
+        let t = 0.5 * (unit_direction.y() + 1.0);
+        (1.0 - t) * *WHITE + t * *BLUE
     }
 }
 
@@ -58,15 +50,24 @@ fn main() {
 
     let mut image_buffer = String::new();
 
+    let mut world = HittableList::new();
+    // Sphere at center
+    world.add(Box::new(Sphere::from(&Point3::from(0.0, 0.0, -1.0), 0.5)));
+    // Floor sphere
+    world.add(Box::new(Sphere::from(
+        &Point3::from(0.0, -100.5, -1.0),
+        100.0,
+    )));
+
     writeln!(&mut image_buffer, "P3\n{image_width} {image_height}\n255").unwrap();
     for j in 0..image_height {
         eprintln!("Scanlines remaining: {}", image_height - j);
         for i in 0..image_width {
             let pixel_center =
                 pixel00_loc + i as Float * pixel_delta_u + j as Float * pixel_delta_v;
-            let ray_direction = (pixel_center - camera_center).normal();
+            let ray_direction = (pixel_center - camera_center).normalized();
             let ray = Ray::from(&camera_center, &ray_direction);
-            let pixel_color = ray_color(&ray);
+            let pixel_color = ray_color(&ray, &world);
             write_color(&mut image_buffer, &pixel_color);
         }
     }
