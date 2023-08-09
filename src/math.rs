@@ -42,35 +42,23 @@ impl Vec3 {
         self.length_squared().sqrt()
     }
 
-    pub fn dot(&self, rhs: Self) -> Float {
-        let x = self.e[0];
-        let y = self.e[1];
-        let z = self.e[2];
-        let rx = rhs.e[0];
-        let ry = rhs.e[1];
-        let rz = rhs.e[2];
-        x * rx + y * ry + z * rz
-    }
-
-    pub fn cross(&self, rhs: Self) -> Self {
-        let ux = self.e[0];
-        let uy = self.e[1];
-        let uz = self.e[2];
-        let vx = rhs.e[0];
-        let vy = rhs.e[1];
-        let vz = rhs.e[2];
-        Self {
-            e: [
-                (uy * vz - uz * vy),
-                (uz * vx - ux * vz),
-                (ux * vy - uy * vx),
-            ],
-        }
-    }
-
-    pub fn unit_vector(&self) -> Self {
+    pub fn normal(&self) -> Self {
         *self / self.length()
     }
+}
+
+pub fn dot(lhs: &Vec3, rhs: &Vec3) -> Float {
+    lhs.x() * rhs.x() + lhs.y() * rhs.y() + lhs.z() * rhs.z()
+}
+
+pub fn cross(lhs: &Vec3, rhs: &Vec3) -> Vec3 {
+    let ux = lhs.x();
+    let uy = lhs.y();
+    let uz = lhs.z();
+    let vx = rhs.x();
+    let vy = rhs.y();
+    let vz = rhs.z();
+    Vec3::from(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx)
 }
 
 impl Add for Vec3 {
