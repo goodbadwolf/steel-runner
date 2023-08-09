@@ -7,7 +7,7 @@ pub struct Ray {
 }
 
 #[derive(Clone, Copy)]
-pub struct HitRecord {
+pub struct RayHit {
     pub point: Point3,
     pub normal: Vec3,
     pub t: Float,
@@ -15,7 +15,7 @@ pub struct HitRecord {
 }
 
 pub trait Hittable {
-    fn hit(&self, ray: &Ray, t_min: Float, t_max: Float, rec: &mut HitRecord) -> bool;
+    fn does_hit(&self, ray: &Ray, t_min: Float, t_max: Float) -> Option<RayHit>;
 }
 
 #[derive(Clone, Copy)]
@@ -48,12 +48,12 @@ impl Ray {
     }
 }
 
-impl HitRecord {
-    pub fn new() -> Self {
+impl RayHit {
+    pub fn from(point: &Point3, t: Float) -> Self {
         Self {
-            point: Point3::new(),
+            point: *point,
             normal: Vec3::new(),
-            t: 0.0,
+            t,
             front_face: false,
         }
     }
@@ -78,14 +78,14 @@ impl Sphere {
 }
 
 impl Hittable for Sphere {
-    fn hit(&self, ray: &Ray, t_min: Float, t_max: Float, rec: &mut HitRecord) -> bool {
+    fn does_hit(&self, ray: &Ray, t_min: Float, t_max: Float) -> Option<RayHit> {
         let oc = ray.origin - self.center;
         let a = ray.direction.length_squared();
         let half_b = dot(&oc, &ray.direction);
         let c = oc.length_squared() - self.radius * self.radius;
         let discriminant = half_b * half_b - a * c;
         if discriminant < 0.0 {
-            return false;
+            return None;
         }
 
         let sqrtd = discriminant.sqrt();
@@ -93,15 +93,14 @@ impl Hittable for Sphere {
         if root < t_min || t_max <= root {
             root = (-half_b + sqrtd) / a;
             if root <= t_min || t_max <= root {
-                return false;
+                return None;
             }
         }
 
-        rec.t = root;
-        rec.point = ray.at(rec.t);
-        let outward_normal = (rec.point - self.center) / self.radius;
-        rec.set_face_normal(ray, &outward_normal);
-        true
+        let mut hit = RayHit::from(&ray.at(root), root);
+        let outward_normal = (hit.point - self.center) / self.radius;
+        hit.set_face_normal(ray, &outward_normal);
+        Some(hit)
     }
 }
 
@@ -122,17 +121,17 @@ impl HittableList {
 }
 
 impl Hittable for HittableList {
-    fn hit(&self, ray: &Ray, t_min: Float, t_max: Float, rec: &mut HitRecord) -> bool {
-        let mut temp_rec = HitRecord::new();
-        let mut hit_anything = false;
-        let mut closest_so_far = t_max;
+    fn does_hit(&self, ray: &Ray, t_min: Float, t_max: Float) -> Option<RayHit> {
+        let mut closest_hit = None;
+        let mut closest_hit_t = t_max;
         for object in &self.objects {
-            if object.hit(ray, t_min, closest_so_far, &mut temp_rec) {
-                hit_anything = true;
-                closest_so_far = temp_rec.t;
-                *rec = temp_rec;
+            if let Some(hit) = object.does_hit(ray, t_min, closest_hit_t) {
+                if hit.t < closest_hit_t {
+                    closest_hit_t = hit.t;
+                    closest_hit = Some(hit);
+                }
             }
         }
-        hit_anything
+        closest_hit
     }
 }
