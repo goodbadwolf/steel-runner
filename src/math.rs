@@ -223,6 +223,16 @@ impl Range {
     }
 }
 
+pub fn clamp<T: PartialOrd + Copy>(v: T, min: T, max: T) -> T {
+    if v < min as T {
+        min
+    } else if v > max {
+        max
+    } else {
+        v
+    }
+}
+
 pub type Point3 = Vec3;
 
 pub type Color3 = Vec3;

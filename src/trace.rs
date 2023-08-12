@@ -1,4 +1,11 @@
-use crate::math::{dot, Float, Point3, Range, Vec3};
+use std::fmt::{Display, Write};
+
+use once_cell::sync::Lazy;
+
+use crate::{
+    color::write_color,
+    math::{clamp, dot, Color3, Float, Point3, Range, Vec3},
+};
 
 #[derive(Clone, Copy)]
 pub struct Ray {
@@ -26,6 +33,22 @@ pub struct Sphere {
 
 pub struct HittableList {
     pub objects: Vec<Box<dyn Hittable>>,
+}
+
+pub struct Camera {
+    pub image_width: u32,
+    pub image_height: u32,
+
+    center: Point3,
+    viewport_width: Float,
+    viewport_height: Float,
+    viewport_u: Vec3,
+    viewport_v: Vec3,
+    viewport_top_left: Point3,
+    focal_length: Float,
+    pixel_top_left: Point3,
+    pixel_delta_u: Vec3,
+    pixel_delta_v: Vec3,
 }
 
 impl Ray {
@@ -111,6 +134,10 @@ impl HittableList {
         }
     }
 
+    pub fn from(objects: Vec<Box<dyn Hittable>>) -> Self {
+        Self { objects }
+    }
+
     pub fn add(&mut self, object: Box<dyn Hittable>) {
         self.objects.push(object);
     }
@@ -133,5 +160,87 @@ impl Hittable for HittableList {
             }
         }
         closest_hit
+    }
+}
+
+impl Camera {
+    pub fn new() -> Self {
+        Self {
+            image_width: 16,
+            image_height: 9,
+
+            center: Point3::new(),
+            focal_length: 0.0,
+            viewport_width: 0.0,
+            viewport_height: 0.0,
+            viewport_u: Vec3::new(),
+            viewport_v: Vec3::new(),
+            viewport_top_left: Point3::new(),
+            pixel_top_left: Point3::new(),
+            pixel_delta_u: Vec3::new(),
+            pixel_delta_v: Vec3::new(),
+        }
+    }
+    pub fn initialize(&mut self) {
+        self.center = Point3::from(0.0, 0.0, 0.0);
+
+        self.focal_length = 1.0;
+        self.viewport_height = 2.0;
+        self.viewport_width =
+            self.viewport_height * (self.image_width as Float / self.image_height as Float);
+
+        self.viewport_u = Vec3::from(self.viewport_width, 0.0, 0.0);
+        self.viewport_v = Vec3::from(0.0, -self.viewport_height, 0.0);
+
+        self.pixel_delta_u = self.viewport_u / (self.image_width as Float);
+        self.pixel_delta_v = self.viewport_v / (self.image_height as Float);
+
+        self.viewport_top_left = self.center
+            - Point3::from(0.0, 0.0, self.focal_length)
+            - self.viewport_u / 2.0
+            - self.viewport_v / 2.0;
+        self.pixel_top_left =
+            self.viewport_top_left + self.pixel_delta_u / 2.0 + self.pixel_delta_v / 2.0;
+    }
+
+    pub fn render<FrameBuffer: Write + Display>(
+        &mut self,
+        world: &dyn Hittable,
+        frame_buffer: &mut FrameBuffer,
+    ) {
+        self.initialize();
+
+        writeln!(
+            frame_buffer,
+            "P3\n{} {}\n255",
+            self.image_width, self.image_height
+        )
+        .unwrap();
+        for j in 0..self.image_height {
+            eprintln!("Scanlines remaining: {}", self.image_height - j);
+            for i in 0..self.image_width {
+                let pixel_center = self.pixel_top_left
+                    + i as Float * self.pixel_delta_u
+                    + j as Float * self.pixel_delta_v;
+                let ray_direction = (pixel_center - self.center).normalized();
+                let ray = Ray::from(&self.center, &ray_direction);
+                let pixel_color = self.get_color(&ray, world);
+                write_color(frame_buffer, &pixel_color);
+            }
+        }
+        println!("{}", frame_buffer);
+        eprintln!("Done.");
+    }
+
+    fn get_color(&self, ray: &Ray, world: &dyn Hittable) -> Color3 {
+        static WHITE: Lazy<Color3> = Lazy::new(|| Color3::from(1.0, 1.0, 1.0));
+        static BLUE: Lazy<Color3> = Lazy::new(|| Color3::from(0.5, 0.7, 1.0));
+
+        if let Some(hit) = world.does_hit(ray, &Range::from(0.0, Float::INFINITY)) {
+            (hit.normal + *WHITE) * 0.5
+        } else {
+            let a = 0.5 * (ray.direction.y() + 1.0);
+            (1.0 - a) * *WHITE + a * *BLUE
+        }
     }
 }
