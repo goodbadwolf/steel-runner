@@ -1,6 +1,7 @@
 use std::fmt::{Display, Write};
 
 use once_cell::sync::Lazy;
+use rand::Rng;
 
 use crate::{
     color::write_color,
@@ -38,6 +39,7 @@ pub struct HittableList {
 pub struct Camera {
     pub image_width: u32,
     pub image_height: u32,
+    pub samples_per_pixel: u32,
 
     center: Point3,
     viewport_width: Float,
@@ -168,7 +170,7 @@ impl Camera {
         Self {
             image_width: 16,
             image_height: 9,
-
+            samples_per_pixel: 1,
             center: Point3::new(),
             focal_length: 0.0,
             viewport_width: 0.0,
@@ -219,17 +221,27 @@ impl Camera {
         for j in 0..self.image_height {
             eprintln!("Scanlines remaining: {}", self.image_height - j);
             for i in 0..self.image_width {
-                let pixel_center = self.pixel_top_left
-                    + i as Float * self.pixel_delta_u
-                    + j as Float * self.pixel_delta_v;
-                let ray_direction = (pixel_center - self.center).normalized();
-                let ray = Ray::from(&self.center, &ray_direction);
-                let pixel_color = self.get_color(&ray, world);
-                write_color(frame_buffer, &pixel_color);
+                let mut pixel_color = Color3::from(0.0, 0.0, 0.0);
+                for sample in 0..self.samples_per_pixel {
+                    let ray = self.get_ray(i, j);
+                    pixel_color += self.get_color(&ray, world);
+                }
+                write_color(frame_buffer, &pixel_color, self.samples_per_pixel);
             }
         }
         println!("{}", frame_buffer);
         eprintln!("Done.");
+    }
+
+    fn get_ray(&self, x: u32, y: u32) -> Ray {
+        let pixel_center = self.pixel_top_left
+            + self.pixel_delta_u * (x as Float)
+            + self.pixel_delta_v * (y as Float);
+        let pixel_sample = pixel_center + self.pixel_sample_square();
+
+        let ray_origin = self.center;
+        let ray_direction = (pixel_sample - self.center).normalized();
+        Ray::from(&ray_origin, &ray_direction)
     }
 
     fn get_color(&self, ray: &Ray, world: &dyn Hittable) -> Color3 {
@@ -242,5 +254,12 @@ impl Camera {
             let a = 0.5 * (ray.direction.y() + 1.0);
             (1.0 - a) * *WHITE + a * *BLUE
         }
+    }
+
+    fn pixel_sample_square(&self) -> Vec3 {
+        let mut rng = rand::thread_rng();
+        let px = rng.gen::<Float>() - 0.5;
+        let py = rng.gen::<Float>() - 0.5;
+        self.pixel_delta_u * px + self.pixel_delta_v * py
     }
 }

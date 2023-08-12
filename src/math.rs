@@ -2,6 +2,8 @@ use std::fmt;
 use std::marker::Copy;
 use std::ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub};
 
+use rand::Rng;
+
 #[cfg(feature = "use_f64")]
 pub type Float = f64;
 #[cfg(feature = "use_f64")]
@@ -231,6 +233,11 @@ pub fn clamp<T: PartialOrd + Copy>(v: T, min: T, max: T) -> T {
     } else {
         v
     }
+}
+
+pub fn random_in_range(range: &Range) -> Float {
+    let mut rng = rand::thread_rng();
+    range.min + (range.max - range.min) * rng.gen::<Float>()
 }
 
 pub type Point3 = Vec3;

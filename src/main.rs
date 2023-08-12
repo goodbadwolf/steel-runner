@@ -15,8 +15,9 @@ fn main() {
 
     const ASPECT_RATIO: Float = 16.0 / 9.0;
     let mut camera = Camera::new();
-    camera.image_width = 1920;
+    camera.image_width = 800;
     camera.image_height = (camera.image_width as Float / ASPECT_RATIO) as u32;
+    camera.samples_per_pixel = 100;
 
     let mut frame_buffer = String::new();
     camera.render(&world, &mut frame_buffer);
