@@ -13,10 +13,16 @@ pub type Float = f32;
 pub const PI: Float = std::f32::consts::PI;
 
 pub const INFINITY: Float = Float::INFINITY;
+pub const NEG_INFINITY: Float = Float::NEG_INFINITY;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Vec3 {
     e: [Float; 3],
+}
+
+pub struct Range {
+    pub min: Float,
+    pub max: Float,
 }
 
 impl Vec3 {
@@ -193,6 +199,27 @@ impl DivAssign for Vec3 {
 impl fmt::Display for Vec3 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[{}, {}, {}]", self.e[0], self.e[1], self.e[2])
+    }
+}
+
+impl Range {
+    pub fn new() -> Self {
+        Self {
+            min: INFINITY,
+            max: NEG_INFINITY,
+        }
+    }
+
+    pub fn from(min: Float, max: Float) -> Self {
+        Self { min, max }
+    }
+
+    pub fn contains(&self, value: Float) -> bool {
+        self.min <= value && value <= self.max
+    }
+
+    pub fn surrounds(&self, value: Float) -> bool {
+        self.min < value && value < self.max
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::math::{dot, Float, Point3, Vec3};
+use crate::math::{dot, Float, Point3, Range, Vec3};
 
 #[derive(Clone, Copy)]
 pub struct Ray {
@@ -15,7 +15,7 @@ pub struct RayHit {
 }
 
 pub trait Hittable {
-    fn does_hit(&self, ray: &Ray, t_min: Float, t_max: Float) -> Option<RayHit>;
+    fn does_hit(&self, ray: &Ray, ray_t: &Range) -> Option<RayHit>;
 }
 
 #[derive(Clone, Copy)]
@@ -78,7 +78,7 @@ impl Sphere {
 }
 
 impl Hittable for Sphere {
-    fn does_hit(&self, ray: &Ray, t_min: Float, t_max: Float) -> Option<RayHit> {
+    fn does_hit(&self, ray: &Ray, ray_t: &Range) -> Option<RayHit> {
         let oc = ray.origin - self.center;
         let a = ray.direction.length_squared();
         let half_b = dot(&oc, &ray.direction);
@@ -89,15 +89,15 @@ impl Hittable for Sphere {
         }
 
         let sqrtd = discriminant.sqrt();
-        let mut root = (-half_b - sqrtd) / a;
-        if root < t_min || t_max <= root {
-            root = (-half_b + sqrtd) / a;
-            if root <= t_min || t_max <= root {
+        let mut t = (-half_b - sqrtd) / a;
+        if !ray_t.surrounds(t) {
+            t = (-half_b + sqrtd) / a;
+            if !ray_t.surrounds(t) {
                 return None;
             }
         }
 
-        let mut hit = RayHit::from(&ray.at(root), root);
+        let mut hit = RayHit::from(&ray.at(t), t);
         let outward_normal = (hit.point - self.center) / self.radius;
         hit.set_face_normal(ray, &outward_normal);
         Some(hit)
@@ -121,11 +121,11 @@ impl HittableList {
 }
 
 impl Hittable for HittableList {
-    fn does_hit(&self, ray: &Ray, t_min: Float, t_max: Float) -> Option<RayHit> {
+    fn does_hit(&self, ray: &Ray, ray_t: &Range) -> Option<RayHit> {
         let mut closest_hit = None;
-        let mut closest_hit_t = t_max;
+        let mut closest_hit_t = ray_t.max;
         for object in &self.objects {
-            if let Some(hit) = object.does_hit(ray, t_min, closest_hit_t) {
+            if let Some(hit) = object.does_hit(ray, &Range::from(ray_t.min, closest_hit_t)) {
                 if hit.t < closest_hit_t {
                     closest_hit_t = hit.t;
                     closest_hit = Some(hit);

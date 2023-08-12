@@ -7,7 +7,7 @@ use once_cell::sync::Lazy;
 use crate::trace::{Hittable, HittableList, Ray, Sphere};
 use crate::{
     color::write_color,
-    math::{Color3, Float, Point3, Vec3, INFINITY},
+    math::{Color3, Float, Point3, Range, Vec3, INFINITY},
 };
 use std::fmt::Write;
 
@@ -15,7 +15,7 @@ fn ray_color(ray: &Ray, world: &dyn Hittable) -> Color3 {
     static WHITE: Lazy<Color3> = Lazy::new(|| Color3::from(1.0, 1.0, 1.0));
     static BLUE: Lazy<Color3> = Lazy::new(|| Color3::from(0.5, 0.7, 1.0));
 
-    match world.does_hit(ray, 0.0, INFINITY) {
+    match world.does_hit(ray, &Range::from(0.0, INFINITY)) {
         Some(hit) => 0.5 * (hit.normal + *WHITE),
         None => {
             let t = 0.5 * (ray.direction.y() + 1.0);
